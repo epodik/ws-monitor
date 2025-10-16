@@ -2,76 +2,117 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>WS Monitor</title>
+  <title>WS Monitor — Crypto & Forex</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body{background:#0e1117;color:#e0e0e0;font-family:'Courier New',monospace;padding:20px}
-    h2{color:#66fcf1}
-    #controls{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px}
-    input{padding:6px 10px;border-radius:6px;border:1px solid #333;background:#161a20;color:#fff}
-    button{padding:8px 16px;border:none;border-radius:8px;cursor:pointer;font-family:inherit}
-    .connect{background:#00b894;color:#fff}
-    .disconnect{background:#d63031;color:#fff}
-    .connect:disabled,.disconnect:disabled{opacity:.6;cursor:not-allowed}
-    #status{margin:8px 0;font-weight:bold}
-    .up{color:#00ff88}.down{color:#ff5555}
-    table{border-collapse:collapse;width:100%;background:#1b1f27;border-radius:8px}
+    body{background:#0e1117;color:#e0e0e0;font-family:'Courier New',monospace;padding:20px;margin:0}
+    h2{color:#66fcf1;margin-bottom:10px}
+    .section{margin-bottom:40px}
+    .section h3{color:#45a29e;margin-bottom:8px}
+    table{border-collapse:collapse;width:100%;background:#1b1f27;border-radius:8px;overflow:hidden;margin-bottom:10px}
     th,td{padding:8px;text-align:left}
     th{background:#222831;color:#66fcf1}
     tr:nth-child(even){background:#161a20}
-    .last-list{list-style:none;padding:0;margin:10px 0;max-height:300px;overflow-y:auto;border:1px solid #333;border-radius:8px}
+    .up{color:#00ff88}
+    .down{color:#ff5555}
+    .last-list{list-style:none;padding:0;margin:0;max-height:260px;overflow-y:auto;border:1px solid #333;border-radius:8px}
     .tick{display:flex;justify-content:space-between;padding:6px 10px;border-bottom:1px dashed #2a2f3a;font-size:14px}
     .tick:last-child{border-bottom:none}
+    .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+    .status{font-weight:bold}
   </style>
 </head>
 <body>
-  <h2>📡 WS Monitor (EODHD)</h2>
-  <div id="controls">
-    <input id="symbolInput" type="text" value="BTC-USD" placeholder="Symbol e.g. ETH-USD">
-    <button class="connect" id="connectBtn">Connect</button>
-    <button class="disconnect" id="disconnectBtn" disabled>Disconnect</button>
+  <h2>📡 WS Monitor — Crypto & Forex</h2>
+
+  <!-- Crypto Section -->
+  <div class="section" id="crypto">
+    <div class="header">
+      <h3>Crypto: BTC-USD</h3>
+      <span class="status" id="crypto-status">🔄 Not connected</span>
+    </div>
+    <table>
+      <thead><tr><th>Symbol</th><th>Price</th><th>Time</th></tr></thead>
+      <tbody id="crypto-body"><tr><td colspan="3" style="text-align:center;">Waiting...</td></tr></tbody>
+    </table>
+    <h4>Last 20 prices</h4>
+    <ul class="last-list" id="crypto-history"></ul>
   </div>
-  <div id="status">🔄 Not connected</div>
-  <table>
-    <thead><tr><th>Symbol</th><th>Price</th><th>Time</th></tr></thead>
-    <tbody id="data-body"><tr><td colspan="3" style="text-align:center;">Waiting...</td></tr></tbody>
-  </table>
-  <h3 style="margin-top:20px;">Last 20 prices</h3>
-  <ul class="last-list" id="lastList"></ul>
+
+  <!-- Forex Section -->
+  <div class="section" id="forex">
+    <div class="header">
+      <h3>Forex: EURUSD</h3>
+      <span class="status" id="forex-status">🔄 Not connected</span>
+    </div>
+    <table>
+      <thead><tr><th>Symbol</th><th>Price</th><th>Time</th></tr></thead>
+      <tbody id="forex-body"><tr><td colspan="3" style="text-align:center;">Waiting...</td></tr></tbody>
+    </table>
+    <h4>Last 20 prices</h4>
+    <ul class="last-list" id="forex-history"></ul>
+  </div>
 
   <script>
-    let ws=null,lastPrice=null,history=[];
-    const statusEl=document.getElementById('status');
-    const body=document.getElementById('data-body');
-    const connectBtn=document.getElementById('connectBtn');
-    const disconnectBtn=document.getElementById('disconnectBtn');
-    const symbolInput=document.getElementById('symbolInput');
-    const lastList=document.getElementById('lastList');
-    const fmtTime=()=>new Date().toLocaleTimeString();
+    // --- Common functions ---
+    const fmtTime = () => new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
 
-    async function connect(){
-      const symbol=symbolInput.value.trim().toUpperCase();
-      if(!symbol)return alert("Enter a symbol!");
-      connectBtn.disabled=true;disconnectBtn.disabled=false;
-      statusEl.textContent="⏳ Connecting...";
-      const cfg=await fetch("/.netlify/functions/ws-proxy").then(r=>r.json());
-      ws=new WebSocket(cfg.url);
-      ws.onopen=()=>{statusEl.textContent=`✅ Connected (${symbol})`;ws.send(JSON.stringify({action:"subscribe",symbols:symbol}));};
-      ws.onmessage=e=>{
-        const d=JSON.parse(e.data);
-        if(!d.s||d.p===undefined)return;
-        const price=+d.p,cls=lastPrice?(price>lastPrice?"up":price<lastPrice?"down":""):"";
-        lastPrice=price;
-        body.innerHTML=`<tr><td>${d.s}</td><td class="${cls}">${price.toFixed(2)}</td><td>${fmtTime()}</td></tr>`;
-        history.push({price,cls,time:fmtTime()});if(history.length>20)history.shift();
-        renderHistory();
-      };
-      ws.onclose=()=>{statusEl.textContent="❌ Disconnected";connectBtn.disabled=false;disconnectBtn.disabled=true;};
-      ws.onerror=()=>statusEl.textContent="⚠️ WebSocket error";
+    function startFeed(name, wsUrl, subscribePayload, ui) {
+      let ws, lastPrice = null, history = [];
+      const statusEl = document.getElementById(ui.status);
+      const bodyEl = document.getElementById(ui.body);
+      const historyEl = document.getElementById(ui.history);
+
+      function renderHistory() {
+        historyEl.innerHTML = history.slice().reverse().map(h =>
+          `<li class="tick"><span>${h.time}</span><span class="${h.cls}">${h.price.toFixed(4)}</span></li>`
+        ).join('');
+      }
+
+      function connect() {
+        ws = new WebSocket(wsUrl);
+        statusEl.textContent = "⏳ Connecting...";
+        ws.onopen = () => {
+          statusEl.textContent = "✅ Connected";
+          ws.send(JSON.stringify(subscribePayload));
+        };
+        ws.onmessage = e => {
+          const d = JSON.parse(e.data);
+          if (!d.s || d.p === undefined) return;
+          const price = +d.p;
+          const cls = lastPrice ? (price>lastPrice?'up':price<lastPrice?'down':'') : '';
+          lastPrice = price;
+          bodyEl.innerHTML = `<tr><td>${d.s}</td><td class="${cls}">${price.toFixed(4)}</td><td>${fmtTime()}</td></tr>`;
+          history.push({price,cls,time:fmtTime()});
+          if (history.length > 20) history.shift();
+          renderHistory();
+        };
+        ws.onclose = () => statusEl.textContent = "❌ Disconnected";
+        ws.onerror = () => statusEl.textContent = "⚠️ Error";
+      }
+
+      connect();
     }
-    function disconnect(){if(ws){ws.close();ws=null;}connectBtn.disabled=false;disconnectBtn.disabled=true;statusEl.textContent="🔴 Closed";}
-    function renderHistory(){lastList.innerHTML=history.slice().reverse().map(h=>`<li class="tick"><span>${h.time}</span><span class="${h.cls}">${h.price.toFixed(2)}</span></li>`).join('');}
-    connectBtn.onclick=connect;disconnectBtn.onclick=disconnect;
+
+    // --- Start Crypto ---
+    fetch("/.netlify/functions/ws-proxy")
+      .then(r=>r.json())
+      .then(cfg=>{
+        const cryptoUrl = cfg.url; // already contains token for crypto
+        startFeed("crypto", cryptoUrl, {action:"subscribe",symbols:"BTC-USD"}, {
+          status: "crypto-status",
+          body: "crypto-body",
+          history: "crypto-history"
+        });
+        // For forex we just replace /crypto? to /forex?
+        const forexUrl = cryptoUrl.replace("/crypto?", "/forex?");
+        startFeed("forex", forexUrl, {action:"subscribe",symbols:"EURUSD"}, {
+          status: "forex-status",
+          body: "forex-body",
+          history: "forex-history"
+        });
+      })
+      .catch(e=>console.error("Proxy load error",e));
   </script>
 </body>
 </html>
