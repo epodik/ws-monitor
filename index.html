@@ -286,65 +286,91 @@
       }
 
       function connect() {
-        const symbol = input.value.trim().toUpperCase();
-        if (!symbol) return alert("Enter symbol first!");
-        ws = new WebSocket(wsUrl);
-        statusEl.textContent = "⏳ Connecting...";
-        connectBtn.disabled = true;
-        disconnectBtn.disabled = false;
-        ws.onopen = () => {
-          statusEl.textContent = "✅ Connected";
-          ws.send(JSON.stringify({action:"subscribe",symbols:symbol}));
-        };
-        ws.onmessage = e => {
-  const msg = e.data;
-  const time = fmtTime();
+  const symbol = input.value.trim().toUpperCase();
+  if (!symbol) return alert("Enter symbol first!");
+  ws = new WebSocket(wsUrl);
+  statusEl.textContent = "⏳ Connecting...";
+  connectBtn.disabled = true;
+  disconnectBtn.disabled = false;
 
-  // пробуем извлечь тикер для статистики
+  // 🔹 ДОБАВЛЯЕМ ЭТОТ БЛОК
   if (type === "us") {
-    try {
-      const data = JSON.parse(msg);
-      const symbol = data.s || data.code || data.ticker;
-      if (symbol) lastUpdate[symbol] = Date.now();
-    } catch {}
+    // список тикеров из строки (через запятую)
+    const symbols = symbol.split(',').map(s => s.trim()).filter(Boolean);
+    lastUpdate = {};
+    symbols.forEach(sym => (lastUpdate[sym] = 0));
+
+    // сразу показываем начальную таблицу со статусом
+    let html = symbols
+      .map(
+        (sym) => `
+        <tr>
+          <td style="padding:6px;">${sym}</td>
+          <td style="padding:6px;color:#ffcc00">No data yet</td>
+        </tr>`
+      )
+      .join('');
+    statusTable.innerHTML =
+      html || "<tr><td colspan='2' style='padding:6px;'>No tickers</td></tr>";
   }
+  // 🔹 КОНЕЦ ДОБАВЛЕННОГО БЛОКА
 
-  // выводим в окно и историю
-  bodyEl.innerHTML = `<tr><td><pre>${msg}</pre></td><td>${time}</td></tr>`;
-  history.push({ msg, time });
-  if (history.length > 20) history.shift();
-  renderHistory();
-};
+  ws.onopen = () => {
+    statusEl.textContent = "✅ Connected";
+    ws.send(JSON.stringify({ action: "subscribe", symbols: symbol }));
+  };
 
-        ws.onclose = () => {
-          statusEl.textContent = "❌ Disconnected";
-          connectBtn.disabled = false;
-          disconnectBtn.disabled = true;
-        };
-        ws.onerror = err => {
-          console.error(err);
-          statusEl.textContent = "⚠️ Error";
-        };
-		if (type === "us") {
-  setInterval(() => {
-    const now = Date.now();
-    let html = "";
-    Object.entries(lastUpdate).forEach(([sym, time]) => {
-      const diff = (now - time) / 1000;
-      const active = diff < 30;
-      html += `<tr>
-        <td style="padding:6px;">${sym}</td>
-        <td style="padding:6px;color:${active?'#00ff88':'#ff5555'}">
-          ${active ? 'Active' : 'No data ' + Math.round(diff) + 's'}
-        </td>
-      </tr>`;
-    });
-    statusTable.innerHTML = html || "<tr><td colspan='2' style='padding:6px;'>No data yet</td></tr>";
-  }, 10000);
+  ws.onmessage = (e) => {
+    const msg = e.data;
+    const time = fmtTime();
+
+    // пробуем извлечь тикер для статистики
+    if (type === "us") {
+      try {
+        const data = JSON.parse(msg);
+        const symbol = data.s || data.code || data.ticker;
+        if (symbol) lastUpdate[symbol] = Date.now();
+      } catch {}
+    }
+
+    // выводим в окно и историю
+    bodyEl.innerHTML = `<tr><td><pre>${msg}</pre></td><td>${time}</td></tr>`;
+    history.push({ msg, time });
+    if (history.length > 20) history.shift();
+    renderHistory();
+  };
+
+  ws.onclose = () => {
+    statusEl.textContent = "❌ Disconnected";
+    connectBtn.disabled = false;
+    disconnectBtn.disabled = true;
+  };
+
+  ws.onerror = (err) => {
+    console.error(err);
+    statusEl.textContent = "⚠️ Error";
+  };
+
+  if (type === "us") {
+    setInterval(() => {
+      const now = Date.now();
+      let html = "";
+      Object.entries(lastUpdate).forEach(([sym, time]) => {
+        const diff = (now - time) / 1000;
+        const active = diff < 30;
+        html += `<tr>
+          <td style="padding:6px;">${sym}</td>
+          <td style="padding:6px;color:${active ? "#00ff88" : "#ff5555"}">
+            ${active ? "Active" : "No data " + Math.round(diff) + "s"}
+          </td>
+        </tr>`;
+      });
+      statusTable.innerHTML =
+        html ||
+        "<tr><td colspan='2' style='padding:6px;'>No data yet</td></tr>";
+    }, 10000);
+  }
 }
-
-
-      }
 
       function disconnect() {
         if (ws) ws.close();
