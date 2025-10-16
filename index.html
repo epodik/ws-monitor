@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Crypto Stream Monitor</title>
+  <style>
+    body {
+      background-color: #0e1117;
+      color: #e0e0e0;
+      font-family: 'Courier New', monospace;
+      padding: 20px;
+    }
+    h2 {
+      color: #66fcf1;
+      margin-bottom: 15px;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      max-width: 600px;
+      background: #1b1f27;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    th, td {
+      text-align: left;
+      padding: 10px;
+    }
+    th {
+      background: #222831;
+      color: #66fcf1;
+    }
+    tr:nth-child(even) {
+      background-color: #161a20;
+    }
+    .up { color: #00ff88; }
+    .down { color: #ff5555; }
+    #status {
+      margin-bottom: 15px;
+    }
+  </style>
+</head>
+<body>
+  <h2>📡 BTC-USD Live Monitor (EODHD)</h2>
+  <div id="status">Connecting...</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Symbol</th>
+        <th>Price</th>
+        <th>Time</th>
+      </tr>
+    </thead>
+    <tbody id="data-body">
+      <tr><td colspan="3" style="text-align:center;">Waiting for data...</td></tr>
+    </tbody>
+  </table>
+
+  <script>
+    const wsUrl = "wss://ws.eodhd.com/ws/crypto?api_token=demo";
+    const ws = new WebSocket(wsUrl);
+    const statusEl = document.getElementById('status');
+    const body = document.getElementById('data-body');
+
+    let lastPrice = null;
+
+    ws.onopen = () => {
+      statusEl.textContent = "✅ Connected to EODHD WebSocket";
+      ws.send(JSON.stringify({
+        action: "subscribe",
+        symbols: "BTC-USD"
+      }));
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (!data || !data.s || !data.p) return; // skip system messages
+
+        const price = parseFloat(data.p).toFixed(2);
+        const symbol = data.s;
+        const time = new Date().toLocaleTimeString();
+
+        let colorClass = '';
+        if (lastPrice !== null) {
+          colorClass = price > lastPrice ? 'up' : (price < lastPrice ? 'down' : '');
+        }
+        lastPrice = price;
+
+        body.innerHTML = `
+          <tr>
+            <td>${symbol}</td>
+            <td class="${colorClass}">${price}</td>
+            <td>${time}</td>
+          </tr>
+        `;
+      } catch (err) {
+        console.error("Message parse error:", err);
+      }
+    };
+
+    ws.onclose = () => {
+      statusEl.textContent = "❌ Disconnected";
+    };
+
+    ws.onerror = (err) => {
+      statusEl.textContent = "⚠️ Error: " + err.message;
+    };
+  </script>
+</body>
+</html>
