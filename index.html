@@ -2,53 +2,110 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>WS Monitor — Side-by-Side Layout</title>
+  <title>WS Monitor — Crypto & Forex Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body {
-      background: #0e1117;
-      color: #e0e0e0;
-      font-family: 'Courier New', monospace;
-      padding: 20px;
-      margin: 0;
-    }
-    h2 {
-      color: #66fcf1;
-      margin-bottom: 20px;
-      text-align: center;
+    :root {
+      --bg: #0e1117;
+      --panel: #1b1f27;
+      --card: #101318;
+      --accent: #66fcf1;
+      --muted: #222831;
+      --text: #e0e0e0;
     }
 
-    /* layout grid */
-    .grid {
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Courier New', monospace;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: var(--panel);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--muted);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+
+    header h1 {
+      color: var(--accent);
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: 1px;
+    }
+
+    main {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 20px;
+      gap: 16px;
+      padding: 20px;
+      flex: 1;
     }
+
     @media (max-width: 900px) {
-      .grid {
+      main {
         grid-template-columns: 1fr;
       }
     }
 
     .section {
-      border: 1px solid #222;
-      border-radius: 10px;
-      padding: 15px;
-      background: #1b1f27;
+      background: var(--panel);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
       display: flex;
       flex-direction: column;
+      position: relative;
     }
 
-    .section h3 {
-      color: #45a29e;
-      margin-bottom: 10px;
+    .section::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 6px;
+      height: 100%;
+      background: linear-gradient(180deg, var(--accent), transparent);
+      opacity: 0.7;
+      border-radius: 12px 0 0 12px;
+    }
+
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .header-row h2 {
+      color: var(--accent);
+      font-size: 18px;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .header-row h2 span {
+      font-size: 14px;
+      color: var(--text);
+      opacity: 0.8;
+      font-weight: normal;
     }
 
     .controls {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
       align-items: center;
     }
 
@@ -71,17 +128,17 @@
     }
     .connect { background: #00b894; color: #fff; }
     .disconnect { background: #d63031; color: #fff; }
-    .connect:disabled, .disconnect:disabled {
-      opacity: .6;
-      cursor: not-allowed;
-    }
+    .connect:disabled, .disconnect:disabled { opacity: .6; cursor: not-allowed; }
 
-    .status { font-weight: bold; margin-left: auto; }
+    .status {
+      font-weight: bold;
+      margin-left: auto;
+    }
 
     table {
       border-collapse: collapse;
       width: 100%;
-      background: #101318;
+      background: var(--card);
       border-radius: 8px;
       overflow: hidden;
       margin-bottom: 10px;
@@ -95,8 +152,8 @@
     }
 
     th {
-      background: #222831;
-      color: #66fcf1;
+      background: var(--muted);
+      color: var(--accent);
     }
 
     tr:nth-child(even) {
@@ -134,17 +191,21 @@
   </style>
 </head>
 <body>
-  <h2>📡 WS Monitor — Crypto & Forex (Side-by-Side)</h2>
+  <header>
+    <h1>📊 WS Monitor — Crypto & Forex Dashboard</h1>
+  </header>
 
-  <div class="grid">
-    <!-- Crypto Section -->
+  <main>
+    <!-- Crypto -->
     <div class="section" id="crypto-section">
-      <h3>Crypto Stream</h3>
+      <div class="header-row">
+        <h2>💰 Crypto <span>(BTC-USD)</span></h2>
+        <span class="status" id="crypto-status">🔄 Not connected</span>
+      </div>
       <div class="controls">
         <input id="crypto-symbol" type="text" value="BTC-USD" placeholder="Symbol (e.g. ETH-USD)">
         <button class="connect" id="crypto-connect">Connect</button>
         <button class="disconnect" id="crypto-disconnect" disabled>Disconnect</button>
-        <span class="status" id="crypto-status">🔄 Not connected</span>
       </div>
       <table>
         <thead><tr><th>Raw Message</th><th>Time</th></tr></thead>
@@ -154,14 +215,16 @@
       <ul class="last-list" id="crypto-history"></ul>
     </div>
 
-    <!-- Forex Section -->
+    <!-- Forex -->
     <div class="section" id="forex-section">
-      <h3>Forex Stream</h3>
+      <div class="header-row">
+        <h2>💱 Forex <span>(EURUSD)</span></h2>
+        <span class="status" id="forex-status">🔄 Not connected</span>
+      </div>
       <div class="controls">
         <input id="forex-symbol" type="text" value="EURUSD" placeholder="Symbol (e.g. GBPUSD)">
         <button class="connect" id="forex-connect">Connect</button>
         <button class="disconnect" id="forex-disconnect" disabled>Disconnect</button>
-        <span class="status" id="forex-status">🔄 Not connected</span>
       </div>
       <table>
         <thead><tr><th>Raw Message</th><th>Time</th></tr></thead>
@@ -170,7 +233,7 @@
       <h4>Last 20 messages</h4>
       <ul class="last-list" id="forex-history"></ul>
     </div>
-  </div>
+  </main>
 
   <script>
     const fmtTime = () => new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
