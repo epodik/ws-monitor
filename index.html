@@ -273,8 +273,10 @@
       const historyEl = document.getElementById(`${type}-history`);
 
       let ws = null, history = [];
-	  let lastUpdate = {}; // {TICKER: timestamp}
-	  const statusTable = document.querySelector("#us-status-table tbody");
+	  if (type === "us") {
+  var lastUpdate = {};
+  var statusTable = document.querySelector("#us-status-table tbody");
+}
 
 
       function renderHistory() {
@@ -299,11 +301,13 @@
   const time = fmtTime();
 
   // пробуем извлечь тикер для статистики
-  try {
-    const data = JSON.parse(msg);
-    const symbol = data.s || data.code || data.ticker;
-    if (symbol) lastUpdate[symbol] = Date.now();
-  } catch {}
+  if (type === "us") {
+    try {
+      const data = JSON.parse(msg);
+      const symbol = data.s || data.code || data.ticker;
+      if (symbol) lastUpdate[symbol] = Date.now();
+    } catch {}
+  }
 
   // выводим в окно и историю
   bodyEl.innerHTML = `<tr><td><pre>${msg}</pre></td><td>${time}</td></tr>`;
@@ -321,21 +325,24 @@
           console.error(err);
           statusEl.textContent = "⚠️ Error";
         };
-		setInterval(() => {
-  const now = Date.now();
-  let html = "";
-  Object.entries(lastUpdate).forEach(([sym, time]) => {
-    const diff = (now - time) / 1000;
-    const active = diff < 30;
-    html += `<tr>
-      <td style="padding:6px;">${sym}</td>
-      <td style="padding:6px;color:${active?'#00ff88':'#ff5555'}">
-        ${active ? 'Active' : 'No data ' + Math.round(diff) + 's'}
-      </td>
-    </tr>`;
-  });
-  statusTable.innerHTML = html || "<tr><td colspan='2' style='padding:6px;'>No data yet</td></tr>";
-}, 10000);
+		if (type === "us") {
+  setInterval(() => {
+    const now = Date.now();
+    let html = "";
+    Object.entries(lastUpdate).forEach(([sym, time]) => {
+      const diff = (now - time) / 1000;
+      const active = diff < 30;
+      html += `<tr>
+        <td style="padding:6px;">${sym}</td>
+        <td style="padding:6px;color:${active?'#00ff88':'#ff5555'}">
+          ${active ? 'Active' : 'No data ' + Math.round(diff) + 's'}
+        </td>
+      </tr>`;
+    });
+    statusTable.innerHTML = html || "<tr><td colspan='2' style='padding:6px;'>No data yet</td></tr>";
+  }, 10000);
+}
+
 
       }
 
