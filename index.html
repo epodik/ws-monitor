@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>WS Monitor — Crypto & Forex Dashboard</title>
+  <title>WS Monitor — Crypto, Forex & US Stocks Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     :root {
@@ -44,16 +44,10 @@
 
     main {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
       gap: 16px;
       padding: 20px;
       flex: 1;
-    }
-
-    @media (max-width: 900px) {
-      main {
-        grid-template-columns: 1fr;
-      }
     }
 
     .section {
@@ -185,14 +179,12 @@
       white-space: pre-wrap;
       word-break: break-word;
     }
-    .tick:last-child {
-      border-bottom: none;
-    }
+    .tick:last-child { border-bottom: none; }
   </style>
 </head>
 <body>
   <header>
-    <h1>📊 WS Monitor — Crypto & Forex Dashboard</h1>
+    <h1>📊 WS Monitor — Crypto, Forex & US Stocks</h1>
   </header>
 
   <main>
@@ -233,6 +225,25 @@
       <h4>Last 20 messages</h4>
       <ul class="last-list" id="forex-history"></ul>
     </div>
+
+    <!-- US Stocks -->
+    <div class="section" id="us-section">
+      <div class="header-row">
+        <h2>🏛️ US Tickers <span>(AAPL)</span></h2>
+        <span class="status" id="us-status">🔄 Not connected</span>
+      </div>
+      <div class="controls">
+        <input id="us-symbol" type="text" value="AAPL" placeholder="Symbol (e.g. TSLA)">
+        <button class="connect" id="us-connect">Connect</button>
+        <button class="disconnect" id="us-disconnect" disabled>Disconnect</button>
+      </div>
+      <table>
+        <thead><tr><th>Raw Message</th><th>Time</th></tr></thead>
+        <tbody id="us-body"><tr><td colspan="2" style="text-align:center;">Waiting...</td></tr></tbody>
+      </table>
+      <h4>Last 20 messages</h4>
+      <ul class="last-list" id="us-history"></ul>
+    </div>
   </main>
 
   <script>
@@ -241,7 +252,12 @@
     async function initFeed(type) {
       const urlData = await fetch("/.netlify/functions/ws-proxy").then(r => r.json());
       const baseUrl = urlData.url;
-      const wsUrl = baseUrl.replace("/crypto?", type === "forex" ? "/forex?" : "/crypto?");
+      let wsUrl = baseUrl;
+
+      // выбираем тип потока
+      if (type === "forex") wsUrl = baseUrl.replace("/crypto?", "/forex?");
+      if (type === "us") wsUrl = baseUrl.replace("/crypto?", "/us?");
+
       const input = document.getElementById(`${type}-symbol`);
       const connectBtn = document.getElementById(`${type}-connect`);
       const disconnectBtn = document.getElementById(`${type}-disconnect`);
@@ -301,6 +317,7 @@
 
     initFeed("crypto");
     initFeed("forex");
+    initFeed("us");
   </script>
 </body>
 </html>
