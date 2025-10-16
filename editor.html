@@ -6,26 +6,36 @@
     <link href="https://unpkg.com/grapesjs/dist/css/grapes.min.css" rel="stylesheet"/>
     <script src="https://unpkg.com/grapesjs"></script>
     <style>
-      body,html { height: 100%; margin: 0; }
+      body, html { height: 100%; margin: 0; }
       #gjs { height: 100%; }
     </style>
   </head>
   <body>
-    <div id="gjs">
-      <!-- сюда подставится твой текущий index.html контент -->
-      <h1>WS Monitor</h1>
-      <p>Редактируй интерфейс прямо здесь 👇</p>
-    </div>
+    <div id="gjs">Loading your current index.html...</div>
 
     <script>
-      const editor = grapesjs.init({
-        container: '#gjs',
-        fromElement: true,
-        height: '100%',
-        width: 'auto',
-        storageManager: { autoload: false },
-        plugins: ['gjs-blocks-basic'],
-      });
+      // Загружаем содержимое текущего index.html
+      fetch('/index.html')
+        .then(res => res.text())
+        .then(html => {
+          // Убираем лишние <script> (чтобы не ломать редактор)
+          html = html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '');
+          
+          // Инициализация GrapesJS
+          const editor = grapesjs.init({
+            container: '#gjs',
+            height: '100%',
+            width: 'auto',
+            fromElement: false,
+            storageManager: false,
+            plugins: ['gjs-blocks-basic'],
+          });
+
+          editor.setComponents(html);
+        })
+        .catch(err => {
+          document.getElementById('gjs').textContent = 'Error loading index.html: ' + err;
+        });
     </script>
   </body>
 </html>
