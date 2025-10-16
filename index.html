@@ -3,155 +3,166 @@
 <head>
   <meta charset="utf-8">
   <title>Crypto Stream Monitor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
+    :root {
+      --bg: #0e1117; --card: #1b1f27; --muted: #222831; --text: #e0e0e0; --accent: #66fcf1;
+    }
     body {
-      background-color: #0e1117;
-      color: #e0e0e0;
+      background-color: var(--bg);
+      color: var(--text);
       font-family: 'Courier New', monospace;
       padding: 20px;
+      margin: 0;
     }
-    h2 {
-      color: #66fcf1;
-      margin-bottom: 10px;
-    }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      max-width: 600px;
-      background: #1b1f27;
-      border-radius: 10px;
-      overflow: hidden;
-    }
-    th, td {
-      text-align: left;
-      padding: 10px;
-    }
-    th {
-      background: #222831;
-      color: #66fcf1;
-    }
-    tr:nth-child(even) {
-      background-color: #161a20;
-    }
-    .up { color: #00ff88; }
-    .down { color: #ff5555; }
-    #status {
-      margin: 10px 0;
-      font-weight: bold;
+    h2 { color: var(--accent); margin: 0 0 12px 0; }
+    #controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+    input {
+      padding: 6px 10px; border-radius: 6px; border: 1px solid #333;
+      background: #161a20; color: #fff; font-family: inherit;
     }
     button {
-      margin-right: 10px;
-      padding: 6px 14px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-family: monospace;
-      font-size: 14px;
-      transition: background 0.2s;
+      padding: 8px 16px; border: none; border-radius: 8px;
+      cursor: pointer; font-family: inherit; font-size: 14px;
     }
-    .connect { background: #00b894; color: white; }
-    .connect:hover { background: #009e7f; }
-    .disconnect { background: #d63031; color: white; }
-    .disconnect:hover { background: #b02425; }
+    .connect { background: #00b894; color: #fff; }
+    .disconnect { background: #d63031; color: #fff; }
+    .connect:disabled, .disconnect:disabled { opacity: 0.6; cursor: not-allowed; }
+    #status { margin: 6px 0 14px; font-weight: bold; }
+    .grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 16px; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--card); border-radius: 12px; padding: 14px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.25);
+    }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { padding: 10px; text-align: left; }
+    th { background: var(--muted); color: var(--accent); }
+    tr:nth-child(even) { background: #161a20; }
+    .up { color: #00ff88; }
+    .down { color: #ff5555; }
+    .last-list {
+      list-style: none; padding: 0; margin: 0;
+      max-height: 420px; overflow-y: auto;
+      border: 1px solid #222a35; border-radius: 8px;
+    }
+    .tick {
+      display: flex; justify-content: space-between; padding: 6px 10px;
+      border-bottom: 1px dashed #2a2f3a; font-size: 14px;
+    }
+    .tick:last-child { border-bottom: none; }
+    .badge { font-size: 12px; margin-left: 6px; opacity: .8; }
+    .badge.up { color: #00ff88; }
+    .badge.down { color: #ff5555; }
+    .muted { opacity: .75; }
   </style>
 </head>
 <body>
-  <h2>📡 BTC-USD Live Monitor (EODHD)</h2>
-  <div>
+  <h2>📡 Crypto Stream Monitor (EODHD)</h2>
+  <div id="controls">
+    <input id="symbolInput" type="text" value="BTC-USD" placeholder="Enter symbol e.g. ETH-USD">
     <button class="connect" id="connectBtn">Connect</button>
     <button class="disconnect" id="disconnectBtn" disabled>Disconnect</button>
   </div>
   <div id="status">🔄 Not connected</div>
-  <table>
-    <thead>
-      <tr>
-        <th>Symbol</th>
-        <th>Price</th>
-        <th>Time</th>
-      </tr>
-    </thead>
-    <tbody id="data-body">
-      <tr><td colspan="3" style="text-align:center;">Waiting for connection...</td></tr>
-    </tbody>
-  </table>
+
+  <div class="grid">
+    <div class="card">
+      <table>
+        <thead>
+          <tr><th>Symbol</th><th>Price</th><th>Time</th></tr>
+        </thead>
+        <tbody id="data-body">
+          <tr><td colspan="3" style="text-align:center;">Waiting for connection...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+        <div style="font-weight:700;">Last 20 prices</div>
+        <div class="muted" id="countInfo">0</div>
+      </div>
+      <ul class="last-list" id="lastList"></ul>
+      <div class="muted" style="margin-top:8px;font-size:12px;">Newest at top</div>
+    </div>
+  </div>
 
   <script>
-    const wsUrl = "wss://ws.eodhd.com/ws/crypto?api_token=demo";
-    let ws = null;
-    let lastPrice = null;
-
-    const statusEl = document.getElementById('status');
+    const WS_BASE = "wss://ws.eodhd.com/ws/crypto?api_token=demo";
+    let ws = null, lastPrice = null, history = [];
     const body = document.getElementById('data-body');
+    const statusEl = document.getElementById('status');
     const connectBtn = document.getElementById('connectBtn');
     const disconnectBtn = document.getElementById('disconnectBtn');
+    const symbolInput = document.getElementById('symbolInput');
+    const lastList = document.getElementById('lastList');
+    const countInfo = document.getElementById('countInfo');
+
+    const fmtTime = () => new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
 
     function connect() {
-      if (ws && ws.readyState === WebSocket.OPEN) return;
-
-      ws = new WebSocket(wsUrl);
-      statusEl.textContent = "⏳ Connecting...";
+      const symbol = symbolInput.value.trim().toUpperCase();
+      if (!symbol) return alert("Enter a symbol first!");
+      if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+      history = []; renderHistory();
+      ws = new WebSocket(WS_BASE);
+      statusEl.textContent = `⏳ Connecting to ${symbol}...`;
       connectBtn.disabled = true;
-
       ws.onopen = () => {
-        statusEl.textContent = "✅ Connected to EODHD WebSocket";
+        statusEl.textContent = `✅ Connected (${symbol})`;
         disconnectBtn.disabled = false;
-        ws.send(JSON.stringify({
-          action: "subscribe",
-          symbols: "BTC-USD"
-        }));
+        ws.send(JSON.stringify({ action: "subscribe", symbols: symbol }));
       };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (!data || !data.s || !data.p) return;
-
-          const price = parseFloat(data.p).toFixed(2);
-          const symbol = data.s;
-          const time = new Date().toLocaleTimeString();
-
-          let colorClass = '';
-          if (lastPrice !== null) {
-            colorClass = price > lastPrice ? 'up' : (price < lastPrice ? 'down' : '');
-          }
-          lastPrice = price;
-
-          body.innerHTML = `
-            <tr>
-              <td>${symbol}</td>
-              <td class="${colorClass}">${price}</td>
-              <td>${time}</td>
-            </tr>
-          `;
-        } catch (err) {
-          console.error("Message parse error:", err);
-        }
+      ws.onmessage = (e) => {
+        const d = JSON.parse(e.data);
+        if (!d.s || d.p === undefined) return;
+        const price = Number(d.p);
+        const priceStr = price.toFixed(2);
+        const symbol = d.s;
+        let cls = '';
+        if (lastPrice !== null) cls = price > lastPrice ? 'up' : (price < lastPrice ? 'down' : '');
+        lastPrice = price;
+        renderTable(symbol, priceStr, cls);
+        pushHistory(price, cls);
       };
-
       ws.onclose = () => {
         statusEl.textContent = "❌ Disconnected";
-        connectBtn.disabled = false;
-        disconnectBtn.disabled = true;
+        connectBtn.disabled = false; disconnectBtn.disabled = true;
       };
-
-      ws.onerror = (err) => {
-        statusEl.textContent = "⚠️ Error: " + err.message;
-      };
+      ws.onerror = () => statusEl.textContent = "⚠️ Connection error";
     }
 
     function disconnect() {
-      if (ws) {
-        ws.close();
-        ws = null;
-      }
-      disconnectBtn.disabled = true;
-      connectBtn.disabled = false;
-      statusEl.textContent = "🔴 Connection closed manually";
+      if (ws) ws.close();
+      ws = null;
+      connectBtn.disabled = false; disconnectBtn.disabled = true;
+      statusEl.textContent = "🔴 Connection closed";
       body.innerHTML = `<tr><td colspan="3" style="text-align:center;">Disconnected</td></tr>`;
     }
 
-    connectBtn.addEventListener('click', connect);
-    disconnectBtn.addEventListener('click', disconnect);
+    function renderTable(symbol, price, cls) {
+      body.innerHTML = `<tr><td>${symbol}</td><td class="${cls}">${price}</td><td>${fmtTime()}</td></tr>`;
+    }
+
+    function pushHistory(price, cls) {
+      history.push({price, cls, time: fmtTime()});
+      if (history.length > 20) history.shift();
+      renderHistory();
+    }
+
+    function renderHistory() {
+      countInfo.textContent = history.length;
+      lastList.innerHTML = history.slice().reverse().map(h => `
+        <li class="tick">
+          <span>${h.time}</span>
+          <span class="${h.cls}">${h.price.toFixed(2)}</span>
+          ${h.cls ? `<span class="badge ${h.cls}">${h.cls === 'up' ? '↑' : '↓'}</span>` : ''}
+        </li>
+      `).join('');
+    }
+
+    connectBtn.onclick = connect;
+    disconnectBtn.onclick = disconnect;
   </script>
 </body>
 </html>
