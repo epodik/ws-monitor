@@ -295,12 +295,23 @@
           ws.send(JSON.stringify({action:"subscribe",symbols:symbol}));
         };
         ws.onmessage = e => {
-          try {
-		const data = JSON.parse(e.data);
-		const symbol = data.s || data.code || data.ticker;
-		if (symbol) lastUpdate[symbol] = Date.now();
-			} catch {}
-        };
+  const msg = e.data;
+  const time = fmtTime();
+
+  // пробуем извлечь тикер для статистики
+  try {
+    const data = JSON.parse(msg);
+    const symbol = data.s || data.code || data.ticker;
+    if (symbol) lastUpdate[symbol] = Date.now();
+  } catch {}
+
+  // выводим в окно и историю
+  bodyEl.innerHTML = `<tr><td><pre>${msg}</pre></td><td>${time}</td></tr>`;
+  history.push({ msg, time });
+  if (history.length > 20) history.shift();
+  renderHistory();
+};
+
         ws.onclose = () => {
           statusEl.textContent = "❌ Disconnected";
           connectBtn.disabled = false;
