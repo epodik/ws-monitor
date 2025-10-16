@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>WS Monitor GUI Editor</title>
+    <link href="https://unpkg.com/grapesjs/dist/css/grapes.min.css" rel="stylesheet"/>
+    <script src="https://unpkg.com/grapesjs"></script>
+    <style>
+      body,html { height: 100%; margin: 0; }
+      #gjs { height: 100%; }
+    </style>
+  </head>
+  <body>
+    <div id="gjs">
+      <!-- сюда подставится твой текущий index.html контент -->
+      <h1>WS Monitor</h1>
+      <p>Редактируй интерфейс прямо здесь 👇</p>
+    </div>
+
+    <script>
+      const editor = grapesjs.init({
+        container: '#gjs',
+        fromElement: true,
+        height: '100%',
+        width: 'auto',
+        storageManager: { autoload: false },
+        plugins: ['gjs-blocks-basic'],
+      });
+    </script>
+  </body>
+</html>
