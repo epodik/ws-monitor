@@ -245,6 +245,11 @@
       </table>
       <h4>Last 20 messages</h4>
       <ul class="last-list" id="us-history"></ul>
+	  <h4>Ticker Status</h4>
+	<table id="us-status-table" style="width:100%;font-size:13px;border-collapse:collapse;background:#101318;border-radius:8px;overflow:hidden;margin-top:8px;">
+	<thead><tr style="background:#222831;color:#66fcf1;"><th style="padding:6px;text-align:left;">Ticker</th><th style="padding:6px;text-align:left;">Status</th></tr></thead>
+	<tbody></tbody>
+	</table>
     </div>
   </main>
 
@@ -268,6 +273,9 @@
       const historyEl = document.getElementById(`${type}-history`);
 
       let ws = null, history = [];
+	  let lastUpdate = {}; // {TICKER: timestamp}
+	  const statusTable = document.querySelector("#us-status-table tbody");
+
 
       function renderHistory() {
         historyEl.innerHTML = history.slice().reverse().map(h =>
@@ -287,12 +295,11 @@
           ws.send(JSON.stringify({action:"subscribe",symbols:symbol}));
         };
         ws.onmessage = e => {
-          const msg = e.data;
-          const time = fmtTime();
-          bodyEl.innerHTML = `<tr><td><pre>${msg}</pre></td><td>${time}</td></tr>`;
-          history.push({msg, time});
-          if (history.length > 20) history.shift();
-          renderHistory();
+          try {
+		const data = JSON.parse(e.data);
+		const symbol = data.s || data.code || data.ticker;
+		if (symbol) lastUpdate[symbol] = Date.now();
+			} catch {}
         };
         ws.onclose = () => {
           statusEl.textContent = "❌ Disconnected";
@@ -303,6 +310,22 @@
           console.error(err);
           statusEl.textContent = "⚠️ Error";
         };
+		setInterval(() => {
+  const now = Date.now();
+  let html = "";
+  Object.entries(lastUpdate).forEach(([sym, time]) => {
+    const diff = (now - time) / 1000;
+    const active = diff < 30;
+    html += `<tr>
+      <td style="padding:6px;">${sym}</td>
+      <td style="padding:6px;color:${active?'#00ff88':'#ff5555'}">
+        ${active ? 'Active' : 'No data ' + Math.round(diff) + 's'}
+      </td>
+    </tr>`;
+  });
+  statusTable.innerHTML = html || "<tr><td colspan='2' style='padding:6px;'>No data yet</td></tr>";
+}, 10000);
+
       }
 
       function disconnect() {
