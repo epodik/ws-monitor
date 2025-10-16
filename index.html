@@ -2,22 +2,13 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>WS Monitor — Crypto & Forex</title>
+  <title>WS Monitor — Raw Stream View</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body{background:#0e1117;color:#e0e0e0;font-family:'Courier New',monospace;padding:20px;margin:0}
     h2{color:#66fcf1;margin-bottom:10px}
     .section{margin-bottom:40px;border:1px solid #222;border-radius:10px;padding:15px;background:#1b1f27}
     .section h3{color:#45a29e;margin-bottom:10px}
-    table{border-collapse:collapse;width:100%;background:#101318;border-radius:8px;overflow:hidden;margin-bottom:10px}
-    th,td{padding:8px;text-align:left}
-    th{background:#222831;color:#66fcf1}
-    tr:nth-child(even){background:#161a20}
-    .up{color:#00ff88}
-    .down{color:#ff5555}
-    .last-list{list-style:none;padding:0;margin:0;max-height:260px;overflow-y:auto;border:1px solid #333;border-radius:8px}
-    .tick{display:flex;justify-content:space-between;padding:6px 10px;border-bottom:1px dashed #2a2f3a;font-size:14px}
-    .tick:last-child{border-bottom:none}
     .controls{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px}
     input{padding:6px 10px;border-radius:6px;border:1px solid #333;background:#161a20;color:#fff}
     button{padding:8px 16px;border:none;border-radius:8px;cursor:pointer;font-family:inherit}
@@ -25,42 +16,50 @@
     .disconnect{background:#d63031;color:#fff}
     .connect:disabled,.disconnect:disabled{opacity:.6;cursor:not-allowed}
     .status{font-weight:bold;margin-left:auto}
+    table{border-collapse:collapse;width:100%;background:#101318;border-radius:8px;overflow:hidden;margin-bottom:10px}
+    th,td{padding:8px;text-align:left;vertical-align:top}
+    th{background:#222831;color:#66fcf1}
+    tr:nth-child(even){background:#161a20}
+    pre{margin:0;white-space:pre-wrap;word-break:break-all;}
+    .last-list{list-style:none;padding:0;margin:0;max-height:260px;overflow-y:auto;border:1px solid #333;border-radius:8px}
+    .tick{padding:6px 10px;border-bottom:1px dashed #2a2f3a;font-size:13px;white-space:pre-wrap;word-break:break-word;}
+    .tick:last-child{border-bottom:none}
   </style>
 </head>
 <body>
-  <h2>📡 WS Monitor</h2>
+  <h2>📡 WS Monitor — Raw Stream Viewer</h2>
 
   <!-- Crypto Section -->
   <div class="section" id="crypto-section">
-    <h3>Crypto</h3>
+    <h3>Crypto Stream</h3>
     <div class="controls">
-      <input id="crypto-symbol" type="text" value="BTC-USD" placeholder="Enter crypto symbol (e.g. ETH-USD)">
+      <input id="crypto-symbol" type="text" value="BTC-USD" placeholder="Symbol (e.g. ETH-USD)">
       <button class="connect" id="crypto-connect">Connect</button>
       <button class="disconnect" id="crypto-disconnect" disabled>Disconnect</button>
       <span class="status" id="crypto-status">🔄 Not connected</span>
     </div>
     <table>
-      <thead><tr><th>Symbol</th><th>Price</th><th>Time</th></tr></thead>
-      <tbody id="crypto-body"><tr><td colspan="3" style="text-align:center;">Waiting...</td></tr></tbody>
+      <thead><tr><th>Raw Message</th><th>Time</th></tr></thead>
+      <tbody id="crypto-body"><tr><td colspan="2" style="text-align:center;">Waiting...</td></tr></tbody>
     </table>
-    <h4>Last 20 prices</h4>
+    <h4>Last 20 messages</h4>
     <ul class="last-list" id="crypto-history"></ul>
   </div>
 
   <!-- Forex Section -->
   <div class="section" id="forex-section">
-    <h3>Forex</h3>
+    <h3>Forex Stream</h3>
     <div class="controls">
-      <input id="forex-symbol" type="text" value="EURUSD" placeholder="Enter forex symbol (e.g. GBPUSD)">
+      <input id="forex-symbol" type="text" value="EURUSD" placeholder="Symbol (e.g. GBPUSD)">
       <button class="connect" id="forex-connect">Connect</button>
       <button class="disconnect" id="forex-disconnect" disabled>Disconnect</button>
       <span class="status" id="forex-status">🔄 Not connected</span>
     </div>
     <table>
-      <thead><tr><th>Symbol</th><th>Price</th><th>Time</th></tr></thead>
-      <tbody id="forex-body"><tr><td colspan="3" style="text-align:center;">Waiting...</td></tr></tbody>
+      <thead><tr><th>Raw Message</th><th>Time</th></tr></thead>
+      <tbody id="forex-body"><tr><td colspan="2" style="text-align:center;">Waiting...</td></tr></tbody>
     </table>
-    <h4>Last 20 prices</h4>
+    <h4>Last 20 messages</h4>
     <ul class="last-list" id="forex-history"></ul>
   </div>
 
@@ -78,11 +77,11 @@
       const bodyEl = document.getElementById(`${type}-body`);
       const historyEl = document.getElementById(`${type}-history`);
 
-      let ws, lastPrice=null, history=[];
+      let ws = null, history = [];
 
       function renderHistory() {
-        historyEl.innerHTML = history.slice().reverse().map(h => 
-          `<li class="tick"><span>${h.time}</span><span class="${h.cls}">${h.price.toFixed(4)}</span></li>`
+        historyEl.innerHTML = history.slice().reverse().map(h =>
+          `<li class="tick">${h.time} — ${h.msg}</li>`
         ).join('');
       }
 
@@ -98,14 +97,11 @@
           ws.send(JSON.stringify({action:"subscribe",symbols:symbol}));
         };
         ws.onmessage = e => {
-          const d = JSON.parse(e.data);
-          if (!d.s || d.p === undefined) return;
-          const price = +d.p;
-          const cls = lastPrice ? (price>lastPrice?'up':price<lastPrice?'down':'') : '';
-          lastPrice = price;
-          bodyEl.innerHTML = `<tr><td>${d.s}</td><td class="${cls}">${price.toFixed(4)}</td><td>${fmtTime()}</td></tr>`;
-          history.push({price,cls,time:fmtTime()});
-          if (history.length>20) history.shift();
+          const msg = e.data;
+          const time = fmtTime();
+          bodyEl.innerHTML = `<tr><td><pre>${msg}</pre></td><td>${time}</td></tr>`;
+          history.push({msg, time});
+          if (history.length > 20) history.shift();
           renderHistory();
         };
         ws.onclose = () => {
@@ -131,7 +127,6 @@
       disconnectBtn.onclick = disconnect;
     }
 
-    // Инициализируем оба блока
     initFeed("crypto");
     initFeed("forex");
   </script>
