@@ -281,7 +281,7 @@
 
       function renderHistory() {
         historyEl.innerHTML = history.slice().reverse().map(h =>
-          `<li class="tick">${h.time} — ${h.msg}</li>`
+          `<li class="tick">${h.msg}</li>`
         ).join('');
       }
 
