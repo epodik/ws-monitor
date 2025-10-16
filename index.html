@@ -250,7 +250,7 @@
     const fmtTime = () => new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
 
     async function initFeed(type) {
-      const urlData = await fetch("/.netlify/functions/ws-proxy").then(r => r.json());
+      const urlData = await fetch("/api/ws-proxy").then(r => r.json());
       const baseUrl = urlData.url;
       let wsUrl = baseUrl;
 
