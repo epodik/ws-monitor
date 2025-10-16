@@ -234,9 +234,11 @@
       </div>
       <div class="controls">
         <input id="us-symbol" type="text" value="AAPL" placeholder="Symbol (e.g. TSLA)">
+		<button id="load-tickers">📂 Load file</button>
         <button class="connect" id="us-connect">Connect</button>
         <button class="disconnect" id="us-disconnect" disabled>Disconnect</button>
       </div>
+	  <input type="file" id="file-input" accept=".txt" hidden>
       <table>
         <thead><tr><th>Raw Message</th><th>Time</th></tr></thead>
         <tbody id="us-body"><tr><td colspan="2" style="text-align:center;">Waiting...</td></tr></tbody>
@@ -318,6 +320,20 @@
     initFeed("crypto");
     initFeed("forex");
     initFeed("us");
+	
+	// === Load tickers from file (for US block) ===
+	const loadBtn = document.getElementById('load-tickers');
+	const fileInput = document.getElementById('file-input');
+
+	loadBtn.onclick = () => fileInput.click();
+
+	fileInput.addEventListener('change', async (e) => {
+	const file = e.target.files[0];
+	if (!file) return;
+	const text = await file.text();
+	const tickers = text.split(/\r?\n/).filter(Boolean).join(',');
+	document.getElementById('us-symbol').value = tickers;
+});
   </script>
 </body>
 </html>
